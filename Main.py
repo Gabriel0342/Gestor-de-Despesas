@@ -16,28 +16,45 @@ def listarUtilizadores():
 def criarUtilizadores():
     nome = input("Qual o seu UserName: ")
     email = input("Qual o seu Email: ")
-    password =input("Qual a sua password: ")
-    passwordBytes = password.encode(encoding="utf-8"); #Transforma String em bytes
+    password = input("Qual a sua password: ")
 
-    hashed_password = bcrypt.hashpw(passwordBytes, bcrypt.gensalt()) #Encripta password
+    passwordBytes = password.encode("utf-8")
+    hashed_password = bcrypt.hashpw(passwordBytes, bcrypt.gensalt())
 
     datacreate = date.today()
-    loginvalido : bool = True
+    loginvalido: bool = True
 
-    responde = supabase_cliente.table("utilizador").select("idutilizador").eq('email',email).execute()
-    while(len(responde.data) > 0):
+    # garantir email único
+    responde = supabase_cliente.table("utilizador").select("idutilizador").eq('email', email).execute()
+    while len(responde.data) > 0:
         print("Email já utilizado")
         email = input("Qual o seu Email: ")
         responde = supabase_cliente.table("utilizador").select("idutilizador").eq('email', email).execute()
 
-    dados = {"nome": nome,
-             "email": email,
-             "password" : hashed_password.decode("utf-8"),
-             "datacreate" : datacreate.strftime('%Y-%m-%d'),
-             "loginvalido": loginvalido,
-             }
+    dados = {
+        "nome": nome,
+        "email": email,
+        "password": hashed_password.decode("utf-8"),
+        "datacreate": datacreate.strftime('%Y-%m-%d'),
+        "loginvalido": loginvalido,
+    }
 
-    response = supabase_cliente.table("utilizador").insert(dados).execute()
+    resp_user = supabase_cliente.table("utilizador").insert(dados).execute()
+    novo_id = resp_user.data[0]["idutilizador"]
+
+    agora = date.today()
+    mes = agora.month
+    ano = agora.year
+
+    dados2 = {
+        "idutilizador": novo_id,
+        "valor": 0,
+        "mes": mes,
+        "ano": ano
+    }
+
+    resp_orc = supabase_cliente.table("orcamento").insert(dados2).execute()
+
 def eliminarUtilizador(nome):
     response = supabase_cliente.table("utilizador").update({"loginvalido": False}).eq("nome",nome).execute()
 
@@ -75,6 +92,14 @@ def criarDespesas():
         "descricao":descricao,
     }
     response = supabase_cliente.table("despesas").insert(dados).execute()
+
+    responses = supabase_cliente.table("orcamento").select("valor").eq("idutilizador", IdUtilizador).single().execute()
+
+    valorOrcamento = responses.data["valor"]
+
+    valorNovo = valorOrcamento - valor
+    response = supabase_cliente.table("orcamento").update({"valor": valorNovo}).eq("idutilizador",IdUtilizador).execute()
+
     print("Despesa Criada com sucesso!")
 
 def listaDespesas(IdUtilizador):
@@ -83,8 +108,21 @@ def listaDespesas(IdUtilizador):
 def eliminarDespesas(IdUtilizador,IdDespesas):
     response = supabase_cliente.table("despesas").eq("idutilizador",IdUtilizador,"iddespesas",IdDespesas).delete()
 
-#def ganho():
-#def valorGastoTipoDespesa():
+def ganho():
+    valor = float(input("Claro!\nQual o valor do ganho?:"))
+    responses = supabase_cliente.table("orcamento").select("valor").eq("idutilizador",IdUtilizador).single().execute()
+
+    valorOrcamento = responses.data["valor"]
+
+    valorNovo = valorOrcamento + valor
+    response = supabase_cliente.table("orcamento").update({"valor": valorNovo}).eq("idutilizador",IdUtilizador).execute()
+def valorGastoTipoDespesa():
+    categoria = str(input("Categoria: "))
+    responses = supabase_cliente.table("categoria").select("idcategoria").eq("categoria", categoria).single().execute()
+    idCategoria = responses.data["idcategoria"]
+    responses = supabase_cliente.table("despesas").select("*").eq("idcategoria",idCategoria).execute()
+    print(responses.data)
+
 def listaDespesasPorPeriodo(IdUtilizador,ano,mes):
     #Filtro de datas
     dataInicio = date(ano,mes,1) # primeiro dia do mes que queremos filtrar
@@ -101,6 +139,12 @@ def listaDespesasPorPeriodo(IdUtilizador,ano,mes):
         print(response.data)
     else:
         print("Não temos despesas nesse periodo")
+def orcamentoMes(mes,ano):
+    responses = supabase_cliente.table("orcamento").select("valor").eq("mes",mes).eq("ano",ano).execute()
+    if len(responses.data) > 0:
+        print(responses.data)
+    else:
+        print("Não tenho despesas nesse mês!")
 
 #Funcionamento do Sistema
 
@@ -117,7 +161,7 @@ else:
 
 
 if login == True:
-    listaDespesasPorPeriodo(IdUtilizador,2025,11)
+    orcamentoMes(12,2025)
 
 else:
     print("Verifique as suas credenciais!")
