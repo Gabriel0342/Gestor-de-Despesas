@@ -1,5 +1,6 @@
 from http.client import responses
 from datetime import date
+from webbrowser import get
 from xmlrpc.client import boolean
 import bcrypt
 from supabase import create_client, Client
@@ -84,13 +85,30 @@ def eliminarDespesas(IdUtilizador,IdDespesas):
 
 #def ganho():
 #def valorGastoTipoDespesa():
-#def listaDespesasPorPeriodo():
+def listaDespesasPorPeriodo(IdUtilizador,ano,mes):
+    #Filtro de datas
+    dataInicio = date(ano,mes,1) # primeiro dia do mes que queremos filtrar
+    if mes == 12:
+        dataFim = date(ano+1,1,1) # caso o mes seja Dezembro o filtro vai inculir o dia 1 de janeiro
+    else:
+        dataFim = date(ano,mes+1,1) # aplica o filtro até ao primeiro dia do proximo mes
+
+    response = (((supabase_cliente.table("despesas").select("*").eq("idutilizador",IdUtilizador).
+                gte("data",dataInicio.isoformat())).#datas >= à dataInicio
+                lt("data",dataFim.isoformat())).#datas < à dataFim
+                execute())
+    if (response.data):
+        print(response.data)
+    else:
+        print("Não temos despesas nesse periodo")
+
+#Funcionamento do Sistema
 
 url: str = "https://dyaqsxvflvbetwwxmehr.supabase.co"
 key: str = "sb_secret_xBi5p84ypNR9-Jq7Jn5I2Q_I29odZSx"
 supabase_cliente: Client = create_client(url, key)
 
-conta = str(input("Você já tem conta?[S/N] : "))
+conta = str(input("Você já tem conta?[S/N] : ")).upper()
 if(conta == "S"):
     login()
 else:
@@ -99,6 +117,7 @@ else:
 
 
 if login == True:
+    listaDespesasPorPeriodo(IdUtilizador,2025,11)
 
 else:
     print("Verifique as suas credenciais!")

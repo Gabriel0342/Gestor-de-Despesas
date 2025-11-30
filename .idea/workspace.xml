@@ -5,8 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7f464977-dca0-46eb-a921-0e712c8819b1" name="Changes" comment="&quot;1&quot;">
-      <change beforePath="$PROJECT_DIR$/.idea/GestorDeDespesas.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/GestorDeDespesas.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Main.py" beforeDir="false" afterPath="$PROJECT_DIR$/Main.py" afterDir="false" />
     </list>
@@ -109,7 +107,10 @@
       <updated>1764200462188</updated>
       <workItem from="1764200463215" duration="5760000" />
       <workItem from="1764343211911" duration="2780000" />
-      <workItem from="1764351805093" duration="7797000" />
+      <workItem from="1764351805093" duration="7977000" />
+      <workItem from="1764372619073" duration="7000" />
+      <workItem from="1764443313103" duration="3541000" />
+      <workItem from="1764534928758" duration="33000" />
     </task>
     <task id="LOCAL-00001" summary="&quot;1&quot;">
       <option name="closed" value="true" />
@@ -142,6 +143,6 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/GestorDeDespesas$Main.coverage" NAME="Main Coverage Results" MODIFIED="1764204625332" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Gestor_de_Despesas$Main.coverage" NAME="Main Coverage Results" MODIFIED="1764372199930" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Gestor_de_Despesas$Main.coverage" NAME="Main Coverage Results" MODIFIED="1764444831366" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
