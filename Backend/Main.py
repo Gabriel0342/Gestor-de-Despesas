@@ -7,6 +7,7 @@ from supabase import create_client, Client
 
 login = False
 IdUtilizador = 0
+
 #CRUDE
 def listarUtilizadores():
     response = supabase_cliente.table("utilizador").select("*").execute()
