@@ -1,156 +1,254 @@
-from http.client import responses
 from datetime import date
-from webbrowser import get
-from xmlrpc.client import boolean
+import os
 import bcrypt
+from fastapi import FastAPI, HTTPException, Query, Path
+from pydantic import BaseModel, EmailStr
 from supabase import create_client, Client
 
-#Funcionamento do Sistema
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://dyaqsxvflvbetwwxmehr.supabase.co")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "sb_secret_xBi5p84ypNR9-Jq7Jn5I2Q_I29odZSx")
 
-url: str = "https://dyaqsxvflvbetwwxmehr.supabase.co"
-key: str = "sb_secret_xBi5p84ypNR9-Jq7Jn5I2Q_I29odZSx"
-supabase_cliente: Client = create_client(url, key)
+supabase_cliente: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+app = FastAPI()
 
-login = False
-IdUtilizador = 0
+# ----------------- MODELOS Pydantic ----------------- #
 
-#CRUDE
-def listarUtilizadores():
-    response = supabase_cliente.table("utilizador").select("*").execute()
-    dados = response.data
-    for i in dados:
-        print(i)
-def criarUtilizadores():
-    nome = input("Qual o seu UserName: ")
-    email = input("Qual o seu Email: ")
-    password = input("Qual a sua password: ")
+class UserCreate(BaseModel):
+    nome: str
+    email: EmailStr
+    password: str
 
-    passwordBytes = password.encode("utf-8")
-    hashed_password = bcrypt.hashpw(passwordBytes, bcrypt.gensalt())
+class UserLogin(BaseModel):
+    nome: str
+    password: str
+
+class DespesaCreate(BaseModel):
+    idcategoria: int
+    valorgasto: float
+    descricao: str
+
+@app.get("/utilizadores")
+def listar_utilizadores():
+    resp = supabase_cliente.table("utilizador").select("*").execute()
+    return resp.data
+
+@app.post("/utilizadores", status_code=201)
+def criar_utilizador(body: UserCreate):
+    # garantir email único
+    existe = (
+        supabase_cliente
+        .table("utilizador")
+        .select("idutilizador")
+        .eq("email", body.email)
+        .execute()
+    )
+    if len(existe.data) > 0:
+        raise HTTPException(status_code=400, detail="Email já utilizado")
+
+    password_bytes = body.password.encode("utf-8")
+    hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
     datacreate = date.today()
-    loginvalido: bool = True
 
-    # garantir email único
-    responde = supabase_cliente.table("utilizador").select("idutilizador").eq('email', email).execute()
-    while len(responde.data) > 0:
-        print("Email já utilizado")
-        email = input("Qual o seu Email: ")
-        responde = supabase_cliente.table("utilizador").select("idutilizador").eq('email', email).execute()
-
-    dados = {
-        "nome": nome,
-        "email": email,
-        "password": hashed_password.decode("utf-8"),
-        "datacreate": datacreate.strftime('%Y-%m-%d'),
-        "loginvalido": loginvalido,
+    dados_user = {
+        "nome": body.nome,
+        "email": body.email,
+        "password": hashed_password,
+        "datacreate": datacreate.strftime("%Y-%m-%d"),
+        "loginvalido": True,
     }
 
-    resp_user = supabase_cliente.table("utilizador").insert(dados).execute()
+    resp_user = supabase_cliente.table("utilizador").insert(dados_user).execute()
     novo_id = resp_user.data[0]["idutilizador"]
 
     agora = date.today()
-    mes = agora.month
-    ano = agora.year
-
-    dados2 = {
+    dados_orc = {
         "idutilizador": novo_id,
         "valor": 0,
-        "mes": mes,
-        "ano": ano
+        "mes": agora.month,
+        "ano": agora.year,
     }
+    supabase_cliente.table("orcamento").insert(dados_orc).execute()
 
-    resp_orc = supabase_cliente.table("orcamento").insert(dados2).execute()
+    return {"idutilizador": novo_id, "message": "Utilizador criado com sucesso"}
 
-def eliminarUtilizador(nome):
-    response = supabase_cliente.table("utilizador").update({"loginvalido": False}).eq("nome",nome).execute()
+@app.post("/login")
+def login(body: UserLogin):
+    resp = (
+        supabase_cliente
+        .table("utilizador")
+        .select("idutilizador, password, loginvalido")
+        .eq("nome", body.nome)
+        .single()
+        .execute()
+    )
 
-def login():
-    global IdUtilizador
-    global login
-    userName = input("Qual o seu UserName: ")
-    password = input("Qual a sua password: ")
+    if not resp.data or not resp.data["loginvalido"]:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    response = supabase_cliente.table("utilizador").select("password").eq("nome",userName).single().execute() #vai buscar a password
+    hash_bd = resp.data["password"].encode("utf-8")
+    ok = bcrypt.checkpw(body.password.encode("utf-8"), hash_bd)
+    if not ok:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    verificarPassword = bcrypt.checkpw(password.encode("utf-8"), response.data["password"].encode("utf-8"))#compara a password
+    # Aqui poderias devolver um JWT; por agora devolve só o id
+    return {"idutilizador": resp.data["idutilizador"], "message": "Login válido"}
 
-    if(verificarPassword):
-        print("Login Válido", userName)
-        login = True
-        response = supabase_cliente.table("utilizador").select("idutilizador").eq("nome",userName).single().execute()
-        IdUtilizador = response.data["idutilizador"]
-def criarDespesas():
-    global IdUtilizador
-    tiposDespesas = ('1-Alimentação','2-Habitação','3-Transportes','4-Saúde','5-Comunicação','6-Jogos','7-Tecnologia','8-Outros')
-    print("Qual o ID do tipo de Despesa? ")
-    for tipoDespesa in tiposDespesas:
-        print("\t",tipoDespesa)
-    tipoDespesas = int(input(": "))
-    valor = float(input("Qual o valor? "))
-    descricao = str(input("Descricao: "))
-    data = date.today()
+@app.patch("/utilizadores/{nome}")
+def desativar_utilizador(nome: str = Path(...)):
+    resp = (
+        supabase_cliente
+        .table("utilizador")
+        .update({"loginvalido": False})
+        .eq("nome", nome)
+        .execute()
+    )
+    if len(resp.data) == 0:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    return {"message": "Utilizador desativado"}
+
+@app.post("/utilizadores/{idutilizador}/despesas", status_code=201)
+def criar_despesas(idutilizador: int = Path(...),body: DespesaCreate = ...):
+    hoje = date.today().isoformat()
 
     dados = {
-        "idutilizador": IdUtilizador,
-        "data":data.isoformat(),
-        "idcategoria":tipoDespesas,
-        "valorgasto":valor,
-        "descricao":descricao,
+        "idutilizador": idutilizador,
+        "data": hoje,
+        "idcategoria": body.idcategoria,
+        "valorgasto": body.valorgasto,
+        "descricao": body.descricao,
     }
-    response = supabase_cliente.table("despesas").insert(dados).execute()
 
-    responses = supabase_cliente.table("orcamento").select("valor").eq("idutilizador", IdUtilizador).single().execute()
+    supabase_cliente.table("despesas").insert(dados).execute()
 
-    valorOrcamento = responses.data["valor"]
+    # atualizar orçamento
+    resp_orc = (
+        supabase_cliente
+        .table("orcamento")
+        .select("valor")
+        .eq("idutilizador", idutilizador)
+        .single()
+        .execute()
+    )
 
-    valorNovo = valorOrcamento - valor
-    response = supabase_cliente.table("orcamento").update({"valor": valorNovo}).eq("idutilizador",IdUtilizador).execute()
+    if not resp_orc.data:
+        raise HTTPException(status_code=404, detail="Orçamento não encontrado")
 
-    print("Despesa Criada com sucesso!")
+    valor_orc = resp_orc.data["valor"]
+    valor_novo = valor_orc - body.valorgasto
 
-def listaDespesas(IdUtilizador):
-    response = supabase_cliente.table("despesas").select("*").eq("idutilizador",IdUtilizador).execute()
-    print(response.data)
-def eliminarDespesas(IdUtilizador,IdDespesas):
-    response = supabase_cliente.table("despesas").eq("idutilizador",IdUtilizador,"iddespesas",IdDespesas).delete()
+    supabase_cliente.table("orcamento").update(
+        {"valor": valor_novo}
+    ).eq("idutilizador", idutilizador).execute()
 
-def ganho():
-    valor = float(input("Claro!\nQual o valor do ganho?:"))
-    responses = supabase_cliente.table("orcamento").select("valor").eq("idutilizador",IdUtilizador).single().execute()
+    return {"message": "Despesa criada com sucesso", "valor_orcamento_atual": valor_novo}
 
-    valorOrcamento = responses.data["valor"]
+@app.get("/utilizadores/{idutilizador}/despesas")
+def listar_despesas(idutilizador: int = Path(...)):
+    resp = (
+        supabase_cliente
+        .table("despesas")
+        .select("*")
+        .eq("idutilizador", idutilizador)
+        .execute()
+    )
+    return resp.data
 
-    valorNovo = valorOrcamento + valor
-    response = supabase_cliente.table("orcamento").update({"valor": valorNovo}).eq("idutilizador",IdUtilizador).execute()
-def valorGastoTipoDespesa():
-    categoria = str(input("Categoria: "))
-    responses = supabase_cliente.table("categoria").select("idcategoria").eq("categoria", categoria).single().execute()
-    idCategoria = responses.data["idcategoria"]
-    responses = supabase_cliente.table("despesas").select("*").eq("idcategoria",idCategoria).execute()
-    print(responses.data)
+@app.delete("/utilizadores/{idutilizador}/despesas/{iddespesas}")
+def eliminar_despesa(idutilizador: int = Path(...),iddespesas: int = Path(...)):
+    resp = (
+        supabase_cliente
+        .table("despesas")
+        .eq("idutilizador", idutilizador)
+        .eq("iddespesas", iddespesas)
+        .delete()
+        .execute()
+    )
+    if len(resp.data) == 0:
+        raise HTTPException(status_code=404, detail="Despesa não encontrada")
+    return {"message": "Despesa eliminada"}
 
-def listaDespesasPorPeriodo(IdUtilizador,ano,mes):
-    #Filtro de datas
-    dataInicio = date(ano,mes,1) # primeiro dia do mes que queremos filtrar
+@app.post("/utilizadores/{idutilizador}/depositos")
+def criar_deposito(idutilizador: int = Path(...),valor: float = Query(..., gt=0)):
+    resp_orc = (
+        supabase_cliente
+        .table("orcamento")
+        .select("valor")
+        .eq("idutilizador", idutilizador)
+        .single()
+        .execute()
+    )
+
+    if not resp_orc.data:
+        raise HTTPException(status_code=404, detail="Orçamento não encontrado")
+
+    valor_atual = resp_orc.data["valor"]
+    valor_novo = valor_atual + valor
+
+    supabase_cliente.table("orcamento").update(
+        {"valor": valor_novo}
+    ).eq("idutilizador", idutilizador).execute()
+
+    return {"message": "Depósito registado", "valor_orcamento_atual": valor_novo}
+
+@app.get("/utilizadores/{idutilizador}/despesas/por-tipo")
+def despesas_por_tipo(idutilizador: int = Path(...),categoria: str = Query(...)):
+    resp_cat = (
+        supabase_cliente
+        .table("categoria")
+        .select("idcategoria")
+        .eq("categoria", categoria)
+        .single()
+        .execute()
+    )
+    if not resp_cat.data:
+        raise HTTPException(status_code=404, detail="Categoria não encontrada")
+
+    idcat = resp_cat.data["idcategoria"]
+
+    resp = (
+        supabase_cliente
+        .table("despesas")
+        .select("*")
+        .eq("idutilizador", idutilizador)
+        .eq("idcategoria", idcat)
+        .execute()
+    )
+    return resp.data
+
+@app.get("/utilizadores/{idutilizador}/despesas/periodo")
+def despesas_por_periodo(idutilizador: int = Path(...),ano: int = Query(...),mes: int = Query(..., ge=1, le=12),):
+    data_inicio = date(ano, mes, 1)
     if mes == 12:
-        dataFim = date(ano+1,1,1) # caso o mes seja Dezembro o filtro vai inculir o dia 1 de janeiro
+        data_fim = date(ano + 1, 1, 1)
     else:
-        dataFim = date(ano,mes+1,1) # aplica o filtro até ao primeiro dia do proximo mes
+        data_fim = date(ano, mes + 1, 1)
 
-    response = (((supabase_cliente.table("despesas").select("*").eq("idutilizador",IdUtilizador).
-                gte("data",dataInicio.isoformat())).#datas >= à dataInicio
-                lt("data",dataFim.isoformat())).#datas < à dataFim
-                execute())
-    if (response.data):
-        print(response.data)
-    else:
-        print("Não temos despesas nesse periodo")
-def orcamentoMes(mes,ano):
-    responses = supabase_cliente.table("orcamento").select("valor").eq("mes",mes).eq("ano",ano).execute()
-    if len(responses.data) > 0:
-        print(responses.data)
-    else:
-        print("Não tenho despesas nesse mês!")
+    resp = (
+        supabase_cliente
+        .table("despesas")
+        .select("*")
+        .eq("idutilizador", idutilizador)
+        .gte("data", data_inicio.isoformat())
+        .lt("data", data_fim.isoformat())
+        .execute()
+    )
 
+    if not resp.data:
+        return {"message": "Não existem despesas nesse período", "despesas": []}
+    return {"despesas": resp.data}
+
+@app.get("/orcamento-mensal")
+def orcamento_mensal(mes: int = Query(..., ge=1, le=12),ano: int = Query(...),):
+    resp = (
+        supabase_cliente
+        .table("orcamento")
+        .select("idutilizador, valor")
+        .eq("mes", mes)
+        .eq("ano", ano)
+        .execute()
+    )
+    if len(resp.data) == 0:
+        return {"message": "Não tenho despesas nesse mês!", "orcamentos": []}
+    return {"orcamentos": resp.data}
