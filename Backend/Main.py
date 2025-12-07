@@ -5,6 +5,13 @@ from xmlrpc.client import boolean
 import bcrypt
 from supabase import create_client, Client
 
+#Funcionamento do Sistema
+
+url: str = "https://dyaqsxvflvbetwwxmehr.supabase.co"
+key: str = "sb_secret_xBi5p84ypNR9-Jq7Jn5I2Q_I29odZSx"
+supabase_cliente: Client = create_client(url, key)
+
+
 login = False
 IdUtilizador = 0
 
@@ -147,23 +154,3 @@ def orcamentoMes(mes,ano):
     else:
         print("Não tenho despesas nesse mês!")
 
-#Funcionamento do Sistema
-
-url: str = "https://dyaqsxvflvbetwwxmehr.supabase.co"
-key: str = "sb_secret_xBi5p84ypNR9-Jq7Jn5I2Q_I29odZSx"
-supabase_cliente: Client = create_client(url, key)
-
-conta = str(input("Você já tem conta?[S/N] : ")).upper()
-if(conta == "S"):
-    login()
-else:
-    print("Tem de criar Conta no sistema")
-    criarUtilizadores()
-
-
-if login == True:
-    orcamentoMes(12,2025)
-
-else:
-    print("Verifique as suas credenciais!")
-    login()
